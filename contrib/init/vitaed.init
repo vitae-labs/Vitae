@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+#  vitaed The vitae core server.
+#
+#
+# chkconfig: 345 80 20
+# description: vitaed
+# processname: vitaed
+#
+
+# Source function library.
+. /etc/init.d/functions
+
+# you can override defaults in /etc/sysconfig/vitaed, see below
+if [ -f /etc/sysconfig/vitaed ]; then
+        . /etc/sysconfig/vitaed
+fi
+
+RETVAL=0
+
+prog=vitaed
+# you can override the lockfile via VITAED_LOCKFILE in /etc/sysconfig/vitaed
+lockfile=${VITAED_LOCKFILE-/var/lock/subsys/vitaed}
+
+# vitaed defaults to /usr/bin/vitaed, override with VITAED_BIN
+vitaed=${VITAED_BIN-/usr/bin/vitaed}
+
+# vitaed opts default to -disablewallet, override with VITAED_OPTS
+vitaed_opts=${VITAED_OPTS--disablewallet}
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $DAEMONOPTS $vitaed $vitaed_opts
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $prog -t600
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

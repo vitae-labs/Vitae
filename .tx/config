@@ -1,0 +1,7 @@
+[main]
+host = https://www.transifex.com
+
+[vitae.qt-translation-020x]
+file_filter = src/qt/locale/vitae_<lang>.ts
+source_file = src/qt/locale/vitae_en.ts
+source_lang = en

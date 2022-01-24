@@ -1,0 +1,33 @@
+# /etc/conf.d/vitaed: config file for /etc/init.d/vitaed
+
+# Config file location
+#VITAED_CONFIGFILE="/etc/vitae/vitae.conf"
+
+# What directory to write pidfile to?  (created and owned by $VITAED_USER)
+#VITAED_PIDDIR="/var/run/vitaed"
+
+# What filename to give the pidfile
+#VITAED_PIDFILE="${VITAED_PIDDIR}/vitaed.pid"
+
+# Where to write vitaed data (be mindful that the blockchain is large)
+#VITAED_DATADIR="/var/lib/vitaed"
+
+# User and group to own vitaed process
+#VITAED_USER="vitae"
+#VITAED_GROUP="vitae"
+
+# Path to vitaed executable
+#VITAED_BIN="/usr/bin/vitaed"
+
+# Nice value to run vitaed under
+#VITAED_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#VITAED_OPTS=""
+
+# The timeout in seconds OpenRC will wait for vitaed to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+VITAED_SIGTERM_TIMEOUT=600

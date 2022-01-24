@@ -1,0 +1,92 @@
+#!/sbin/openrc-run
+
+# backward compatibility for existing gentoo layout 
+#
+if [ -d "/var/lib/vitae/.vitae" ]; then
+	VITAED_DEFAULT_DATADIR="/var/lib/vitae/.vitae"
+else
+	VITAED_DEFAULT_DATADIR="/var/lib/vitaed"
+fi
+
+VITAED_CONFIGFILE=${VITAED_CONFIGFILE:-/etc/vitae/vitae.conf}
+VITAED_PIDDIR=${VITAED_PIDDIR:-/var/run/vitaed}
+VITAED_PIDFILE=${VITAED_PIDFILE:-${VITAED_PIDDIR}/vitaed.pid}
+VITAED_DATADIR=${VITAED_DATADIR:-${VITAED_DEFAULT_DATADIR}}
+VITAED_USER=${VITAED_USER:-${VITAE_USER:-vitae}}
+VITAED_GROUP=${VITAED_GROUP:-vitae}
+VITAED_BIN=${VITAED_BIN:-/usr/bin/vitaed}
+VITAED_NICE=${VITAED_NICE:-${NICELEVEL:-0}}
+VITAED_OPTS="${VITAED_OPTS:-${VITAE_OPTS}}"
+
+name="Vitae Core Daemon"
+description="Vitae cryptocurrency P2P network daemon"
+
+command="/usr/bin/vitaed"
+command_args="-pid=\"${VITAED_PIDFILE}\" \
+		-conf=\"${VITAED_CONFIGFILE}\" \
+		-datadir=\"${VITAED_DATADIR}\" \
+		-daemon \
+		${VITAED_OPTS}"
+
+required_files="${VITAED_CONFIGFILE}"
+start_stop_daemon_args="-u ${VITAED_USER} \
+			-N ${VITAED_NICE} -w 2000"
+pidfile="${VITAED_PIDFILE}"
+
+# The retry schedule to use when stopping the daemon. Could be either
+# a timeout in seconds or multiple signal/timeout pairs (like
+# "SIGKILL/180 SIGTERM/300")
+retry="${VITAED_SIGTERM_TIMEOUT}"
+
+depend() {
+	need localmount net
+}
+
+# verify
+# 1) that the datadir exists and is writable (or create it)
+# 2) that a directory for the pid exists and is writable
+# 3) ownership and permissions on the config file
+start_pre() {
+	checkpath \
+	-d \
+	--mode 0750 \
+	--owner "${VITAED_USER}:${VITAED_GROUP}" \
+	"${VITAED_DATADIR}"
+
+	checkpath \
+	-d \
+	--mode 0755 \
+	--owner "${VITAED_USER}:${VITAED_GROUP}" \
+	"${VITAED_PIDDIR}"
+
+	checkpath -f \
+	-o ${VITAED_USER}:${VITAED_GROUP} \
+	-m 0660 \
+	${VITAED_CONFIGFILE}
+
+	checkconfig || return 1
+}
+
+checkconfig()
+{
+	if ! grep -qs '^rpcpassword=' "${VITAED_CONFIGFILE}" ; then
+		eerror ""
+		eerror "ERROR: You must set a secure rpcpassword to run vitaed."
+		eerror "The setting must appear in ${VITAED_CONFIGFILE}"
+		eerror ""
+		eerror "This password is security critical to securing wallets "
+		eerror "and must not be the same as the rpcuser setting."
+		eerror "You can generate a suitable random password using the following "
+		eerror "command from the shell:"
+		eerror ""
+		eerror "bash -c 'tr -dc a-zA-Z0-9 < /dev/urandom | head -c32 && echo'"
+		eerror ""
+		eerror "It is recommended that you also set alertnotify so you are "
+		eerror "notified of problems:"
+		eerror ""
+		eerror "ie: alertnotify=echo %%s | mail -s \"Vitae Alert\"" \
+			"admin@foo.com"
+		eerror ""
+		return 1
+	fi
+}
