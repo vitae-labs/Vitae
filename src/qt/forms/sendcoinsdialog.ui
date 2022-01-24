@@ -1187,7 +1187,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee of "100 satoshis p
      <item>
       <widget class="QCheckBox" name="checkBoxSwap">
        <property name="text">
-        <string>Swap to Solvi Chain</string>
+        <string>Send to Solvia Chain</string>
        </property>
       </widget>
      </item>
