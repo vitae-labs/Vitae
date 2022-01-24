@@ -231,12 +231,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     bool IsSwapTransaction = false;
     if(ui->checkBoxSwap->isChecked()){
         IsSwapTransaction = true;
-        LogPrintf("IsSwapPayment is true. \n");
+        //LogPrintf("IsSwapPayment is true. \n");
 //        QMessageBox messageBox;
 //        messageBox.critical(0,"Error","Swaps are not yet enabled");
 //        messageBox.setFixedSize(500,200);
     } else {
-        LogPrintf("IsSwapPayment is false. \n");
+        //LogPrintf("IsSwapPayment is false. \n");
     }
 
     for(int i = 0; i < ui->entries->count(); ++i)
@@ -244,7 +244,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry)
         {
-            if(entry->validate(model->node()), IsSwapTransaction)
+            if(entry->validate(model->node(), IsSwapTransaction))
             {
                 recipients.append(entry->getValue(IsSwapTransaction));
             }
@@ -255,6 +255,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             }
         }
     }
+    LogPrintf("valid is %d. \n",valid);
 
     if(!valid || recipients.isEmpty())
     {
