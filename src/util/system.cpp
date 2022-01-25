@@ -584,7 +584,7 @@ fs::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Vitae";
+    return pathRet / "Library/Application Support/VITAE";
 #else
     // Unix
     return pathRet / ".vitae";
