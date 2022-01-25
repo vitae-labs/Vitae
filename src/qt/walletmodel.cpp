@@ -328,10 +328,6 @@ WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
     {
         return Unencrypted;
     }
-    else if (m_wallet->fWalletUnlockStakeOnly())
-    {
-        return UnlockedForStakingOnly;
-    }
     else if(m_wallet->isLocked())
     {
         return Locked;
