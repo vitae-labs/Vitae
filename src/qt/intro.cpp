@@ -358,11 +358,11 @@ void Intro::UpdatePruneLabels(bool prune_checked)
     QString storageRequiresMsg = tr("At least %1 GB of data will be stored in this directory, and it will grow over time.");
     if (prune_checked && m_prune_target_gb <= m_blockchain_size_gb) {
         m_required_space_gb = m_prune_target_gb + m_chain_state_size_gb;
-        storageRequiresMsg = tr("Approximately %1 GB of data will be stored in this directory. This is highly discouraged.");
+        storageRequiresMsg = tr("Approximately %1 GB of data will be stored in this directory.");
     }
     ui->lblExplanation3->setVisible(prune_checked);
     ui->sizeWarningLabel->setText(
-        tr("%1 will download and store a copy of the Vitae block chain. This can cause problems(with txindex=1), so forcefully disabled, if you still want to run in prune mode use daemon.").arg(PACKAGE_NAME) + " " +
+        tr("%1 will download and store a copy of the Vitae block chain.").arg(PACKAGE_NAME) + " " +
         storageRequiresMsg.arg(m_required_space_gb) + " " +
         tr("The wallet will also be stored in this directory.")
     );
