@@ -490,6 +490,9 @@ int GuiMain(int argc, char* argv[])
     bool prune = false; // Intro dialog prune check box
     // Gracefully exit if the user cancels
     if (!Intro::showIfNeeded(*node, did_show_intro, prune)) return EXIT_SUCCESS;
+    
+    // Set prune false even if gui
+    prune = false;
 
     /// 6. Determine availability of data directory and parse vitae.conf
     /// - Do not call GetDataDir(true) before this step finishes
