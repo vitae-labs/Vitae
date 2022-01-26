@@ -14,7 +14,7 @@ typedef int64_t CAmount;
 
 static const CAmount COIN = 100000000;
 
-static const int FORK_HEIGHT = 2757210;
+static const int FORK_HEIGHT = 2657210;
 static const int FORK_TIME = 1642466625;
 
 /** No amount larger than this (in satoshi) is valid.
