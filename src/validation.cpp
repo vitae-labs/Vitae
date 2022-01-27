@@ -2299,7 +2299,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // Check masternodes
     bool fCheckMasternode = false;
-    if (GetSporkValue(SPORK_1_MASTERNODE_PAYMENTS_ENFORCEMENT) > (int)block.nTime)
+    if (GetSporkValue(SPORK_1_MASTERNODE_PAYMENTS_ENFORCEMENT) < (int)block.nTime)
         fCheckMasternode = true;
     const int height_ = pindex->nHeight;
     CScript scriptDummy;
