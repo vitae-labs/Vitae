@@ -1994,20 +1994,20 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     }
 
     // moved from CheckBlock() - funky behaviour there
-    uint256 hashProofOfStake = uint256();
-    if (block.IsProofOfStake() && pindex->nHeight > FORK_HEIGHT)
-    {
-        uint256 hash = block.GetHash();
-        if(!CheckProofOfStake(block, hashProofOfStake, pindex->pprev))
-           return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-stake", "check proof-of-stake failed");
+//     uint256 hashProofOfStake = uint256();
+//     if (block.IsProofOfStake() && pindex->nHeight > FORK_HEIGHT)
+//     {
+//         uint256 hash = block.GetHash();
+//         if(!CheckProofOfStake(block, hashProofOfStake, pindex->pprev))
+//            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-stake", "check proof-of-stake failed");
 
-        if(hashProofOfStake == uint256())
-           return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-stake", "hashproof is null");
+//         if(hashProofOfStake == uint256())
+//            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-stake", "hashproof is null");
 
-        if(!mapProofOfStake.count(hash)) { // add to mapProofOfStake
-            mapProofOfStake.emplace(std::make_pair(hash, hashProofOfStake));
-        }
-    }
+//         if(!mapProofOfStake.count(hash)) { // add to mapProofOfStake
+//             mapProofOfStake.emplace(std::make_pair(hash, hashProofOfStake));
+//         }
+//     }
 
     // verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
@@ -3912,9 +3912,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
         // low-work blocks on a fake chain that we would never
         // request; don't process these.
         if (pindex->nChainWork < nMinimumChainWork) return true;
-
-        if(pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS))
-            return true;
 
     }
 
