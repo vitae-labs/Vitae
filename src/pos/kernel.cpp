@@ -125,7 +125,7 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
 uint256 ComputeNextStakeModifier(const CBlockIndex* pindexPrev, const uint256 kernel, bool& fGeneratedStakeModifier)
 {
     auto prevStakeModifier = pindexPrev->nStakeModifier;
-    if (pindexPrev->nHeight == 2107198 || pindexPrev->nHeight == FORK_HEIGHT)
+    if (pindexPrev->nHeight == 2107198 || pindexPrev->nHeight <= 2664751)
     {
         return uint256();
     }
