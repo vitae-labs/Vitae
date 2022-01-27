@@ -3879,7 +3879,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
 
     if (!accepted_header)
         return false;
-    if(pindex->pprev && pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS))
+    if(pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS))
         return false;
 
     // Try to process all requested blocks that we don't have, but only
