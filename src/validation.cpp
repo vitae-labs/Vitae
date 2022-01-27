@@ -3222,6 +3222,13 @@ void CChainState::ResetBlockFailureFlags(CBlockIndex *pindex) {
     while (it != m_blockman.m_block_index.end()) {
         if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
             it->second->nStatus &= ~BLOCK_FAILED_MASK;
+            //reset modifier also , todo: check
+            uint256 nStakeModifier = uint256();
+            bool fGeneratedStakeModifier = false;
+            nStakeModifier = ComputeNextStakeModifier(it->second->pprev, it->second->prevoutStake.hash, fGeneratedStakeModifier);
+            //LogPrintf("resetblockflags() : ComputeNextStakeModifier() %s \n",nStakeModifier.ToString());
+            it->second->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
+
             setDirtyBlockIndex.insert(it->second);
             if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->HaveTxsDownloaded() && setBlockIndexCandidates.value_comp()(m_chain.Tip(), it->second)) {
                 setBlockIndexCandidates.insert(it->second);
