@@ -2009,6 +2009,45 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         }
     }
 
+    // We checked blocks, now update stake params in pindex
+    if (block.IsProofOfStake()) {
+        pindex->SetProofOfStake();
+        pindex->prevoutStake = block.vtx[1]->vin[0].prevout;
+        pindex->nStakeTime = block.nTime;
+    } else {
+        pindex->prevoutStake.SetNull();
+        pindex->nStakeTime = 0;
+    }
+
+    pindex->bnChainTrust = (pindex->pprev ? pindex->pprev->bnChainTrust : ArithToUint256(0 + pindex->GetBlockTrust()));
+
+    if (!pindex->SetStakeEntropyBit(pindex->GetStakeEntropyBit()))
+        LogPrintf("AcceptProofOfStakeBlock() : SetStakeEntropyBit() failed \n");
+
+    uint256 hash = block.GetHash();
+
+    // ppcoin: record proof-of-stake hash value
+    if (pindex->IsProofOfStake() && pindex->nHeight > FORK_HEIGHT) {
+        if (!mapProofOfStake.count(hash))
+            LogPrintf("ConnectBlock() : hashProofOfStake not found in map \n");
+        pindex->hashProofOfStake = hashProofOfStake;//mapProofOfStake[hash];
+        mapProofOfStake.clear();
+
+        //compute stake modifier
+        uint256 nStakeModifier = uint256();
+        bool fGeneratedStakeModifier = false;
+        //todo
+        nStakeModifier = ComputeNextStakeModifier(pindex->pprev, block.vtx[1]->vin[0].prevout.hash, fGeneratedStakeModifier);
+        if(nStakeModifier == uint256())
+        LogPrintf("ConnectBlock() : ComputeNextStakeModifier() zerohash \n");
+        pindex->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
+        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
+        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum)) {
+            LogPrintf("ConnectBlock() : Rejected by stake modifier checkpoint height=%d, modifier=%s \n", pindex->nHeight, nStakeModifier.ToString());
+            //LogPrintf("pindexNew->nStakeModifierChecksum = %08x\n", pindex->nStakeModifierChecksum);
+        }
+    }
+
     // verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
     assert(hashPrevBlock == view.GetBestBlock());
@@ -3923,63 +3962,6 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, Block
         }
         return error("%s: %s", __func__, state.ToString());
     }
-
-    // moved from CheckBlock() - funky behaviour there
-    uint256 hashProofOfStake = uint256();
-    if (block.IsProofOfStake() && nHeight > FORK_HEIGHT)
-    {
-        uint256 hash = block.GetHash();
-        if(!CheckProofOfStake(block, hashProofOfStake, pindex->pprev))
-           return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-stake", "check proof-of-stake failed");
-
-        if(hashProofOfStake == uint256())
-           return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-stake", "hashproof is null");
-
-        if(!mapProofOfStake.count(hash)) { // add to mapProofOfStake
-            mapProofOfStake.emplace(std::make_pair(hash, hashProofOfStake));
-        }
-    }
-
-    // We checked blocks, now update stake params in pindex
-    if (block.IsProofOfStake()) {
-        pindex->SetProofOfStake();
-        pindex->prevoutStake = block.vtx[1]->vin[0].prevout;
-        pindex->nStakeTime = block.nTime;
-    } else {
-        pindex->prevoutStake.SetNull();
-        pindex->nStakeTime = 0;
-    }
-
-    pindex->bnChainTrust = (pindex->pprev ? pindex->pprev->bnChainTrust : ArithToUint256(0 + pindex->GetBlockTrust()));
-
-    if (!pindex->SetStakeEntropyBit(pindex->GetStakeEntropyBit()))
-        LogPrintf("AcceptProofOfStakeBlock() : SetStakeEntropyBit() failed \n");
-
-    uint256 hash = block.GetHash();
-
-    // ppcoin: record proof-of-stake hash value
-    if (pindex->IsProofOfStake() && pindex->nHeight > FORK_HEIGHT) {
-        if (!mapProofOfStake.count(hash))
-            LogPrintf("AcceptBlock() : hashProofOfStake not found in map \n");
-        pindex->hashProofOfStake = hashProofOfStake;//mapProofOfStake[hash];
-        mapProofOfStake.clear();
-
-        //compute stake modifier
-        uint256 nStakeModifier = uint256();
-        bool fGeneratedStakeModifier = false;
-        //todo
-        nStakeModifier = ComputeNextStakeModifier(pindex->pprev, block.vtx[1]->vin[0].prevout.hash, fGeneratedStakeModifier);
-        if(nStakeModifier == uint256())
-        LogPrintf("AcceptBlock() : ComputeNextStakeModifier() zerohash \n");
-        pindex->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
-        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
-        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum)) {
-            LogPrintf("AcceptBlock() : Rejected by stake modifier checkpoint height=%d, modifier=%s \n", pindex->nHeight, nStakeModifier.ToString());
-            //LogPrintf("pindexNew->nStakeModifierChecksum = %08x\n", pindex->nStakeModifierChecksum);
-        }
-    }
-
-
 
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
     // (but if it does not build on our best tip, let the SendMessages loop relay it)
