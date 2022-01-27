@@ -48,6 +48,8 @@
 #include <validationinterface.h>
 #include <warnings.h>
 
+#include <masternodes/spork.h>
+
 #include <masternodes/activemasternode.h>
 #include <miner.h>
 
@@ -2296,13 +2298,16 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     }
 
     // Check masternodes
+    bool fCheckMasternode = false;
+    if (GetSporkValue(SPORK_1_MASTERNODE_PAYMENTS_ENFORCEMENT) > (int)block.nTime)
+        fCheckMasternode = true;
     const int height_ = pindex->nHeight;
     CScript scriptDummy;
     CMutableTransaction mtxdummy;
     mtxdummy.vout.push_back(CTxOut(0, scriptDummy));
     mtxdummy.vout.push_back(CTxOut(0, scriptDummy));
 
-    if (block.IsProofOfStake() && height_ > FORK_HEIGHT) {
+    if (fCheckMasternode && block.IsProofOfStake() && height_ > FORK_HEIGHT) {
         if (!::ChainstateActive().IsInitialBlockDownload() && FillMasternodePayments(mtxdummy, height_, blockReward)) {
             //LogPrintf("ConnectBlock: passed mn reward distribution \n");
             if (block.vtx[1]->vout.size() < 3) {
@@ -4012,7 +4017,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
             GetMainSignals().BlockChecked(*pblock, state);
             return error("%s: AcceptBlock FAILED (%s)", __func__, state.ToString());
         }
-        if (!fImporting && !fReindex && !::ChainstateActive().IsInitialBlockDownload()) {
+        if (!fImporting && !fReindex && !::ChainstateActive().IsInitialBlockDownload() && ::ChainActive().Tip()->nHeight > FORK_HEIGHT) {
             if(masternodePayments.ProcessBlock(::ChainActive().Tip()->nHeight + 10))
                 LogPrintf(" masternodePayments.ProcessBlock run success\n");
             mnscan.DoMasternodePOSChecks();
