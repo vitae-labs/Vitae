@@ -2306,38 +2306,42 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     CMutableTransaction mtxdummy;
     mtxdummy.vout.push_back(CTxOut(0, scriptDummy));
     mtxdummy.vout.push_back(CTxOut(0, scriptDummy));
+    bool fhaspayee;
 
     if (fCheckMasternode && block.IsProofOfStake() && height_ > FORK_HEIGHT) {
-        if (!::ChainstateActive().IsInitialBlockDownload() && FillMasternodePayments(mtxdummy, height_, blockReward)) {
+        if (!::ChainstateActive().IsInitialBlockDownload() && FillMasternodePayments(mtxdummy, height_, blockReward, fhaspayee)) {
             //LogPrintf("ConnectBlock: passed mn reward distribution \n");
-            if (block.vtx[1]->vout.size() < 3) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-stake-vout-size");
-            }
-            CTxOut out_ = block.vtx[1]->vout.back();
-            //LogPrintf("ConnectBlock: passed out_ init \n");
-            if (out_.scriptPubKey != (mtxdummy.vout.back()).scriptPubKey) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-masternode-payee");
-            }
-            //LogPrintf("ConnectBlock: passed out_ script check \n");
-            if (out_.nValue > (mtxdummy.vout.back()).nValue) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-masternode-pay-toomuch");
-            }
-            //LogPrintf("ConnectBlock: passed out_ reward check \n");
+            if(fhaspayee){
+                if (block.vtx[1]->vout.size() < 3) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-stake-vout-size");
+                }
+                CTxOut out_ = block.vtx[1]->vout.back();
+                //LogPrintf("ConnectBlock: passed out_ init \n");
+                if (out_.scriptPubKey != (mtxdummy.vout.back()).scriptPubKey) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-masternode-payee");
+                }
+                //LogPrintf("ConnectBlock: passed out_ script check \n");
+                if (out_.nValue > (mtxdummy.vout.back()).nValue) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-masternode-pay-toomuch");
+                }
+                //LogPrintf("ConnectBlock: passed out_ reward check \n");
 
-            // FN check
-            out_ = block.vtx[1]->vout.rbegin()[1];
-            //LogPrintf("ConnectBlock: passed fn out_ init \n");
-            if (out_.scriptPubKey != (mtxdummy.vout.rbegin()[1]).scriptPubKey) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-fundamentalnode-payee");
-            }
-            if (out_.nValue > (mtxdummy.vout.rbegin()[1]).nValue) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-fundamentalnode-pay-toomuch");
+                // FN check
+                out_ = block.vtx[1]->vout.rbegin()[1];
+                //LogPrintf("ConnectBlock: passed fn out_ init \n");
+                if (out_.scriptPubKey != (mtxdummy.vout.rbegin()[1]).scriptPubKey) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-fundamentalnode-payee");
+                }
+                if (out_.nValue > (mtxdummy.vout.rbegin()[1]).nValue) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-fundamentalnode-pay-toomuch");
+                }
             }
         } else {
             if (::ChainstateActive().IsInitialBlockDownload()) {
                 LogPrintf("ConnectBlock: Skipping masternode as in initialBlockDownload state");
             } else {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "no-masternode-payment");
+                if(fhaspayee)
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "no-masternode-payment");
             }
 
         }

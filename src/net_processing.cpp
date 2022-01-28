@@ -3664,7 +3664,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         }
         if (mngetSend) {
             if (!::ChainstateActive().IsInitialBlockDownload() && !pto->fmnsynced) {
-                pto->fmnsynced = true;
+                //pto->fmnsynced = true;
                 mnodeman.DsegUpdate(pto, connman);
                 connman->PushMessage(pto, msgMaker.Make("mnget"));
                 connman->PushMessage(pto, msgMaker.Make("getsporks"));

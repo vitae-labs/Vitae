@@ -206,7 +206,7 @@ private:
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
 
-bool FillMasternodePayments(CMutableTransaction& mtx, const int nHeight, CAmount blockreward);
+bool FillMasternodePayments(CMutableTransaction& mtx, const int nHeight, CAmount blockreward, bool &fhaspayee);
 
 namespace boost {
     class thread_group;

@@ -461,7 +461,7 @@ static CScript GetFnNodePayee(int nHeight) {
     return CScript() << OP_DUP << OP_HASH160 << ParseHex(fndata[winner_index].first) << OP_EQUALVERIFY << OP_CHECKSIG;
 }
 
-bool FillMasternodePayments(CMutableTransaction& mtx, const int nHeight, CAmount blockreward)
+bool FillMasternodePayments(CMutableTransaction& mtx, const int nHeight, CAmount blockreward, bool &fhaspayee)
 {
     bool bMasterNodePayment = false;
     CScript payee;
@@ -481,6 +481,7 @@ bool FillMasternodePayments(CMutableTransaction& mtx, const int nHeight, CAmount
         //spork
         if(!masternodePayments.GetBlockPayee(nHeight, payee)){
             //no masternode detected
+            fhaspayee = false;
             CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
             if(winningNode){
                 payee = GetScriptForDestination(PKHash(winningNode->pubkey));
@@ -488,7 +489,7 @@ bool FillMasternodePayments(CMutableTransaction& mtx, const int nHeight, CAmount
                 LogPrintf("FillMasternodePayments: Failed to detect masternode to pay\n");
                 hasPayment = false;
             }
-        }
+        } else{fhaspayee = true;}
         if(hasPayment){
 
             mtx.vout.resize(vout_size+2);
@@ -604,8 +605,8 @@ void static ThreadStakeMinter(std::shared_ptr<CWallet> pwallet, CConnman* connma
         //! broadcast signed block and ProcessNewBlock
 
         // Fill masternode and fundamentalnode
-        {
-            if (!FillMasternodePayments(mStakeTxn, nBlockHeight, nBlockReward)) {
+        {   bool fhaspayee;
+            if (!FillMasternodePayments(mStakeTxn, nBlockHeight, nBlockReward, fhaspayee)) {
                 LogPrintf("ThreadStakeMinter : masternode is missing\n");
                 UninterruptibleSleep(std::chrono::milliseconds{5000});
                 continue;
