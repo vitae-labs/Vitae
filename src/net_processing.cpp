@@ -3048,7 +3048,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
         std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
         vRecv >> *pblock;
 
-        if (::ChainstateActive().IsInitialBlockDownload() && !(pblock->GetBlockTime() < GetAdjustedTime() - 60 * 60)){
+        if (::ChainstateActive().IsInitialBlockDownload() && !(pblock->GetBlockTime() < GetAdjustedTime() - 6 * 60)){
             return true;
         }
 
