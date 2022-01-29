@@ -349,13 +349,13 @@ struct CNodeState {
         /* Track when to attempt download of announced transactions (process
          * time in micros -> txid)
          */
-        std::multimap<std::chrono::microseconds, uint256> m_tx_process_time;
+        std::multimap<std::chrono::microseconds, CInv> m_tx_process_time;
 
         //! Store all the transactions a peer has recently announced
-        std::set<uint256> m_tx_announced;
+        std::set<CInv> m_tx_announced;
 
         //! Store transactions which were requested by us, with timestamp
-        std::map<uint256, std::chrono::microseconds> m_tx_in_flight;
+        std::map<CInv, std::chrono::microseconds> m_tx_in_flight;
 
         //! Periodically check for stuck getdata requests
         std::chrono::microseconds m_check_expiry_timer{0};
@@ -739,23 +739,23 @@ std::chrono::microseconds CalculateTxGetDataTime(const uint256& txid, std::chron
     return process_time;
 }
 
-void RequestTx(CNodeState* state, const uint256& txid, std::chrono::microseconds current_time) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+void RequestTx(CNodeState* state, const CInv& inv, std::chrono::microseconds current_time) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     CNodeState::TxDownloadState& peer_download_state = state->m_tx_download;
     if (peer_download_state.m_tx_announced.size() >= MAX_PEER_TX_ANNOUNCEMENTS ||
             peer_download_state.m_tx_process_time.size() >= MAX_PEER_TX_ANNOUNCEMENTS ||
-            peer_download_state.m_tx_announced.count(txid)) {
+            peer_download_state.m_tx_announced.count(inv)) {
         // Too many queued announcements from this peer, or we already have
         // this announcement
         return;
     }
-    peer_download_state.m_tx_announced.insert(txid);
+    peer_download_state.m_tx_announced.insert(inv);
 
     // Calculate the time to try requesting this transaction. Use
     // fPreferredDownload as a proxy for outbound peers.
-    const auto process_time = CalculateTxGetDataTime(txid, current_time, !state->fPreferredDownload);
+    const auto process_time = CalculateTxGetDataTime(inv.hash, current_time, !state->fPreferredDownload);
 
-    peer_download_state.m_tx_process_time.emplace(process_time, txid);
+    peer_download_state.m_tx_process_time.emplace(process_time, inv);
 }
 
 } // namespace
@@ -2342,7 +2342,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                     pfrom->fDisconnect = true;
                     return true;
                 } else if (!fAlreadyHave && !fImporting && !fReindex && !::ChainstateActive().IsInitialBlockDownload()) {
-                    RequestTx(State(pfrom->GetId()), inv.hash, current_time);
+                    RequestTx(State(pfrom->GetId()), inv, current_time);
                 }
             }
         }
@@ -2589,8 +2589,8 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
         TxValidationState state;
 
         CNodeState* nodestate = State(pfrom->GetId());
-        nodestate->m_tx_download.m_tx_announced.erase(inv.hash);
-        nodestate->m_tx_download.m_tx_in_flight.erase(inv.hash);
+        nodestate->m_tx_download.m_tx_announced.erase(inv);
+        nodestate->m_tx_download.m_tx_in_flight.erase(inv);
         EraseTxRequest(inv.hash);
 
         std::list<CTransactionRef> lRemovedTxn;
@@ -2634,7 +2634,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                 for (const CTxIn& txin : tx.vin) {
                     CInv _inv(MSG_TX | nFetchFlags, txin.prevout.hash);
                     pfrom->AddInventoryKnown(_inv);
-                    if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom->GetId()), _inv.hash, current_time);
+                    if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom->GetId()), _inv, current_time);
                 }
                 AddOrphanTx(ptx, pfrom->GetId());
 
@@ -3296,14 +3296,14 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                 if (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX) {
                     // If we receive a NOTFOUND message for a txid we requested, erase
                     // it from our data structures for this peer.
-                    auto in_flight_it = state->m_tx_download.m_tx_in_flight.find(inv.hash);
+                    auto in_flight_it = state->m_tx_download.m_tx_in_flight.find(inv);
                     if (in_flight_it == state->m_tx_download.m_tx_in_flight.end()) {
                         // Skip any further work if this is a spurious NOTFOUND
                         // message.
                         continue;
                     }
                     state->m_tx_download.m_tx_in_flight.erase(in_flight_it);
-                    state->m_tx_download.m_tx_announced.erase(inv.hash);
+                    state->m_tx_download.m_tx_announced.erase(inv);
                 }
             }
         }
@@ -3664,7 +3664,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         }
         if (mngetSend) {
             if (!::ChainstateActive().IsInitialBlockDownload() && !pto->fmnsynced) {
-                //pto->fmnsynced = true;
+                pto->fmnsynced = true;
                 mnodeman.DsegUpdate(pto, connman);
                 connman->PushMessage(pto, msgMaker.Make("mnget"));
                 connman->PushMessage(pto, msgMaker.Make("getsporks"));
@@ -4141,11 +4141,15 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
 
         auto& tx_process_time = state.m_tx_download.m_tx_process_time;
         while (!tx_process_time.empty() && tx_process_time.begin()->first <= current_time && state.m_tx_download.m_tx_in_flight.size() < MAX_PEER_TX_IN_FLIGHT) {
-            const uint256 txid = tx_process_time.begin()->second;
+            CInv inv = tx_process_time.begin()->second;
             // Erase this entry from tx_process_time (it may be added back for
             // processing at a later time, see below)
             tx_process_time.erase(tx_process_time.begin());
-            CInv inv(MSG_TX | GetFetchFlags(pto), txid);
+            if (inv.type == MSG_TX) {
+                CInv inv_(MSG_TX | GetFetchFlags(pto), inv.hash);
+                inv = inv_;
+            }
+
             if (!AlreadyHave(inv, m_mempool)) {
                 // If this transaction was last requested more than 1 minute ago,
                 // then request.
@@ -4158,19 +4162,19 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                         vGetData.clear();
                     }
                     UpdateTxRequestTime(inv.hash, current_time);
-                    state.m_tx_download.m_tx_in_flight.emplace(inv.hash, current_time);
+                    state.m_tx_download.m_tx_in_flight.emplace(inv, current_time);
                 } else {
                     // This transaction is in flight from someone else; queue
                     // up processing to happen after the download times out
                     // (with a slight delay for inbound peers, to prefer
                     // requests to outbound peers).
-                    const auto next_process_time = CalculateTxGetDataTime(txid, current_time, !state.fPreferredDownload);
-                    tx_process_time.emplace(next_process_time, txid);
+                    const auto next_process_time = CalculateTxGetDataTime(inv.hash, current_time, !state.fPreferredDownload);
+                    tx_process_time.emplace(next_process_time, inv);
                 }
             } else {
                 // We have already seen this transaction, no need to download.
-                state.m_tx_download.m_tx_announced.erase(inv.hash);
-                state.m_tx_download.m_tx_in_flight.erase(inv.hash);
+                state.m_tx_download.m_tx_announced.erase(inv);
+                state.m_tx_download.m_tx_in_flight.erase(inv);
             }
         }
 
